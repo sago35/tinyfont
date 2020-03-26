@@ -22,6 +22,10 @@ func main() {
 		pkgname, path, fontname string
 		font                    tinyfont.Font
 	}{
+		{`tinyfont`, `./tinyfont/org_01.go`, `Org01`, tinyfont.Org01},
+		{`tinyfont`, `./tinyfont/picopixel.go`, `Picopixel`, tinyfont.Picopixel},
+		{`tinyfont`, `./tinyfont/tiny3x3a2pt7b.go`, `Tiny3x3a2pt7b`, tinyfont.Tiny3x3a2pt7b},
+		{`tinyfont`, `./tinyfont/tomthumb.go`, `TomThumb`, tinyfont.TomThumb},
 		{`freemono`, `./freemono/freemono12pt7b.go`, `Regular12pt7b`, freemono.Regular12pt7b},
 		{`freemono`, `./freemono/freemono18pt7b.go`, `Regular18pt7b`, freemono.Regular18pt7b},
 		{`freemono`, `./freemono/freemono24pt7b.go`, `Regular24pt7b`, freemono.Regular24pt7b},
@@ -102,16 +106,13 @@ func main() {
 
 		newLen := 0
 		for _, x := range nfont.Glyphs {
+			newLen += int(unsafe.Sizeof(x.Rune))
 			newLen += int(unsafe.Sizeof(x.Width))
 			newLen += int(unsafe.Sizeof(x.Height))
 			newLen += int(unsafe.Sizeof(x.XAdvance))
 			newLen += int(unsafe.Sizeof(x.XOffset))
 			newLen += int(unsafe.Sizeof(x.YOffset))
 			newLen += len(*(*[]byte)(unsafe.Pointer(&x.Bitmaps)))
-		}
-		for _, x := range nfont.RuneToIndex {
-			newLen += int(unsafe.Sizeof(x.Rune))
-			newLen += int(unsafe.Sizeof(x.Index))
 		}
 		newLen += int(unsafe.Sizeof(nfont.YAdvance))
 		fmt.Printf("| %s.%s | %d byte | %d byte | %+d byte | %.2f %% |\n", tgt.pkgname, tgt.fontname, orgLen, newLen, newLen-orgLen, float64(newLen)/float64(orgLen)*100)
@@ -144,6 +145,7 @@ func convertFont(packagename, fontname string, orgfont tinyfont.Font) (ntinyfont
 		length := (uint16(og.Width)*uint16(og.Height) + 7) / 8
 
 		g := ntinyfont.Glyph{
+			Rune:     rune(int(orgfont.First) + i),
 			Width:    og.Width,
 			Height:   og.Height,
 			XAdvance: og.XAdvance,
@@ -151,13 +153,8 @@ func convertFont(packagename, fontname string, orgfont tinyfont.Font) (ntinyfont
 			YOffset:  og.YOffset,
 			Bitmaps:  orgfont.Bitmaps[og.BitmapIndex : og.BitmapIndex+length],
 		}
-		rti := ntinyfont.RuneToIndex{
-			Rune:  rune(int(orgfont.First) + i),
-			Index: uint16(i),
-		}
 
 		ret.Glyphs = append(ret.Glyphs, g)
-		ret.RuneToIndex = append(ret.RuneToIndex, rti)
 	}
 	return ret, nil
 }
@@ -173,8 +170,8 @@ func write(w io.Writer, pkgname, fontname string, ufont ntinyfont.Font) {
 	fmt.Fprintf(w, "var %s = %T{\n", fontname, ufont)
 	fmt.Fprintf(w, "	Glyphs:%T{\n", ufont.Glyphs)
 	for i, g := range ufont.Glyphs {
-		c := fmt.Sprintf("%c", ufont.RuneToIndex[i].Rune)
-		if ufont.RuneToIndex[i].Rune == 0 {
+		c := fmt.Sprintf("%c", ufont.Glyphs[i].Rune)
+		if ufont.Glyphs[i].Rune == 0 {
 			c = ""
 		}
 		fmt.Fprintf(w, "		/* %s */ %#v,\n", c, g)
@@ -182,16 +179,6 @@ func write(w io.Writer, pkgname, fontname string, ufont ntinyfont.Font) {
 	fmt.Fprintf(w, "	},\n")
 	fmt.Fprintln(w)
 
-	fmt.Fprintf(w, "	RuneToIndex:%T{\n", ufont.RuneToIndex)
-	for _, rti := range ufont.RuneToIndex {
-		c := fmt.Sprintf("%c", rti.Rune)
-		if rti.Rune == 0 {
-			c = ""
-		}
-		fmt.Fprintf(w, "		/* %s */ %#v,\n", c, rti)
-	}
-	fmt.Fprintf(w, "	},\n")
-	fmt.Fprintln(w)
 	fmt.Fprintf(w, "	YAdvance:%#v,\n", ufont.YAdvance)
 	fmt.Fprintf(w, "}\n")
 }

@@ -1,5 +1,5 @@
-github.com/sago35/tinyfont v0.0.0-20200313154119-63b687cd4d7c h1:oiCXx4j/l5D1AX3kuSSzRQvIx+ltmaItyh/zfczKCzY=
-github.com/sago35/tinyfont v0.0.0-20200313154119-63b687cd4d7c/go.mod h1:/eOu+MQ307e/Yr+iDGJcvwiGdRPQLq3XV6AuOws5ZYo=
+github.com/sago35/tinyfont v0.0.0-20200325133019-365847636545 h1:9eavGgVePW7jseMt46pfSI99UX8SGKgTN+tnRyv16LM=
+github.com/sago35/tinyfont v0.0.0-20200325133019-365847636545/go.mod h1:/eOu+MQ307e/Yr+iDGJcvwiGdRPQLq3XV6AuOws5ZYo=
 github.com/tinygo-org/tinyfont v0.0.0-20200313072306-29efd7cd05af h1:yETAVxUl5X96228phv5luAhkwg2srzK23LMFPnsmubE=
 github.com/tinygo-org/tinyfont v0.0.0-20200313072306-29efd7cd05af/go.mod h1:CryxOVIwUKHOs18vVfual3eL7dV4XKVX4J2+bOed3cE=
 tinygo.org/x/drivers v0.11.0 h1:7K08UXjtjmgEqutIzBuzkehi7pdPP2rUaIYQ80ndUbM=
