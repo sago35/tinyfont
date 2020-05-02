@@ -3,6 +3,7 @@ package main
 import (
 	"image/color"
 	"machine"
+	"time"
 
 	"tinygo.org/x/drivers/ili9341"
 	"tinygo.org/x/tinyfont"
@@ -40,4 +41,14 @@ func main() {
 		"\u2934\u2935\u2B05\u2B06\u2B07\u2B1B\u2B1C\u2B50\u2B55\n" +
 		"\u3030\u303D\u3297\u3299\uFEFF"
 	tinyfont.WriteLine(display, &notoemoji.NotoEmojiRegular20pt, 3, 0x16, str, color.RGBA{0, 0, 0, 255})
+
+	led := machine.LED
+	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	for {
+		led.Low()
+		time.Sleep(time.Millisecond * 500)
+
+		led.High()
+		time.Sleep(time.Millisecond * 500)
+	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"image/color"
 	"machine"
+	"time"
 
 	"tinygo.org/x/tinyfont/freemono"
 	"tinygo.org/x/tinyfont/freesans"
@@ -38,6 +39,15 @@ func main() {
 
 	tinyfont.WriteLineColors(&display, &gophers.Regular58pt, 18, 90, "ABC", mycolors[9:])
 
+	led := machine.LED
+	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	for {
+		led.Low()
+		time.Sleep(time.Millisecond * 500)
+
+		led.High()
+		time.Sleep(time.Millisecond * 500)
+	}
 }
 
 func getRainbowRGB(i uint8) color.RGBA {

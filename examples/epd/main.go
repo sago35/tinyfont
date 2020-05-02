@@ -2,6 +2,7 @@ package main
 
 import (
 	"machine"
+	"time"
 
 	"image/color"
 
@@ -42,6 +43,16 @@ func main() {
 	display.Display()
 	display.WaitUntilIdle()
 	println("You could remove power now")
+
+	led := machine.LED
+	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	for {
+		led.Low()
+		time.Sleep(time.Millisecond * 500)
+
+		led.High()
+		time.Sleep(time.Millisecond * 500)
+	}
 }
 
 func showRect(x int16, y int16, w int16, h int16, c color.RGBA) {

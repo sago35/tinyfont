@@ -3,6 +3,7 @@ package main
 import (
 	"image/color"
 	"machine"
+	"time"
 
 	"tinygo.org/x/drivers/ili9341"
 	"tinygo.org/x/tinyfont"
@@ -47,4 +48,14 @@ func main() {
 		"Uzbek — Ўзбекча\n"
 
 	tinyfont.WriteLine(display, &notosans.Notosans12pt, 3, 0x16, str, color.RGBA{0, 0, 0, 255})
+
+	led := machine.LED
+	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	for {
+		led.Low()
+		time.Sleep(time.Millisecond * 500)
+
+		led.High()
+		time.Sleep(time.Millisecond * 500)
+	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"image/color"
 	"machine"
+	"time"
 
 	"tinygo.org/x/drivers/ili9341"
 	"tinygo.org/x/tinyfont"
@@ -37,6 +38,16 @@ func main() {
 	tinyfont.WriteLineColorsRotated(display, &tinyfont.Org01, 10, 40, "TinyGo", mycolors[18:], tinyfont.ROTATION_90)
 
 	tinyfont.WriteLineColors(display, &gophers.Regular58pt, 18, 90, "ABC", mycolors[9:])
+
+	led := machine.LED
+	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	for {
+		led.Low()
+		time.Sleep(time.Millisecond * 500)
+
+		led.High()
+		time.Sleep(time.Millisecond * 500)
+	}
 }
 
 func getRainbowRGB(i uint8) color.RGBA {
