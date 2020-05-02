@@ -158,27 +158,81 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 	fmt.Fprintln(tmp)
 
 	fontname := strings.ToUpper(f.fontname[0:1]) + f.fontname[1:]
-	fmt.Fprintf(tmp, "var %s = %T{\n", fontname, ufont)
-	fmt.Fprintf(tmp, "	Glyphs:%T{\n", ufont.Glyphs)
+
+	fmt.Fprintf(tmp, `const c%s = "" +`, fontname)
+	fmt.Fprintln(tmp)
+
+	idxMap := map[rune]int{}
+	current := 0
 	for i, g := range ufont.Glyphs {
+		idxMap[g.Rune] = current
 		c := fmt.Sprintf("%c", ufont.Glyphs[i].Rune)
 		if ufont.Glyphs[i].Rune == 0 {
 			c = ""
 		}
-		gstr := fmt.Sprintf("%#v", g)
-		gstr = re.ReplaceAllStringFunc(gstr, func(s string) string {
-			r := 0
-			fmt.Sscanf(s, `Rune:%d`, &r)
-			return fmt.Sprintf(`Rune:%#x`, r)
-		})
-		//gstr = re.ReplaceAllStringFunc(gstr, strings.ToUpper)
-		fmt.Fprintf(tmp, "		/* %s */ %s,\n", c, gstr)
+		length := 2 + 1 + 1 + 1 + 1 + 1 + len(g.Bitmaps)
+		fmt.Fprintf(tmp, `	/* %s */ `, c)
+		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, (uint16(length) >> 8), uint8(length))
+		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, (uint16(g.Rune) >> 8), uint8(g.Rune))
+		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, uint8(g.Width), uint8(g.Height))
+		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, uint8(g.XAdvance), uint8(g.XOffset))
+		fmt.Fprintf(tmp, `"\x%02X" +`, uint8(g.YOffset))
+		fmt.Fprintf(tmp, `"`)
+		for _, b := range g.Bitmaps {
+			fmt.Fprintf(tmp, `\x%02X`, uint8(b))
+		}
+		fmt.Fprintf(tmp, `" +`)
+		fmt.Fprintln(tmp)
+		current += 2 + length
 	}
-	fmt.Fprintf(tmp, "	},\n")
+	fmt.Fprintln(tmp, `""`)
 	fmt.Fprintln(tmp)
 
-	fmt.Fprintf(tmp, "	YAdvance:%#v,\n", ufont.YAdvance)
+	fmt.Fprintf(tmp, "type s%s struct {\n", fontname)
 	fmt.Fprintf(tmp, "}\n")
+	fmt.Fprintf(tmp, "\n")
+	fmt.Fprintf(tmp, "var %s = s%s{}\n", fontname, fontname)
+	fmt.Fprintf(tmp, "\n")
+	fmt.Fprintf(tmp, "func (f *s%s) GetGlyph(r rune) tinyfont.Glyph {\n", fontname)
+	fmt.Fprintf(tmp, "	idx := 0\n")
+	fmt.Fprintf(tmp, "\n")
+
+	// switch
+	fmt.Fprintf(tmp, "switch r {\n")
+	keys := []int{}
+	for k := range idxMap {
+		keys = append(keys, int(k))
+	}
+	sort.Ints(keys)
+
+	for _, k := range keys {
+		v := idxMap[rune(k)]
+		fmt.Fprintf(tmp, "case 0x%04X: idx = %d\n", k, v)
+	}
+	fmt.Fprintf(tmp, "}\n")
+	fmt.Fprintf(tmp, "\n")
+
+	fmt.Fprintf(tmp, "	length := int((uint16(c%s[idx+0]) << 8) + uint16(c%s[idx+1]))\n", fontname, fontname)
+	fmt.Fprintf(tmp, "	idx += 2\n")
+	fmt.Fprintf(tmp, "	ret := tinyfont.Glyph{\n")
+	fmt.Fprintf(tmp, "		Rune:     rune((uint16(c%s[idx+0]) << 8) + uint16(c%s[idx+1])),\n", fontname, fontname)
+	fmt.Fprintf(tmp, "		Width:    uint8(c%s[idx+2]),\n", fontname)
+	fmt.Fprintf(tmp, "		Height:   uint8(c%s[idx+3]),\n", fontname)
+	fmt.Fprintf(tmp, "		XAdvance: uint8(c%s[idx+4]),\n", fontname)
+	fmt.Fprintf(tmp, "		XOffset:  int8(c%s[idx+5]),\n", fontname)
+	fmt.Fprintf(tmp, "		YOffset:  int8(c%s[idx+6]),\n", fontname)
+	fmt.Fprintf(tmp, "		Bitmaps:  []uint8(c%s[idx+7 : idx+length]),\n", fontname)
+	fmt.Fprintf(tmp, "	}\n")
+	fmt.Fprintf(tmp, "\n")
+	fmt.Fprintf(tmp, "	return ret\n")
+	fmt.Fprintf(tmp, "}\n")
+	fmt.Fprintf(tmp, "\n")
+	fmt.Fprintf(tmp, "func (f *s%s) GetYAdvance() uint8 {\n", fontname)
+	fmt.Fprintf(tmp, "	return 0x14\n")
+	fmt.Fprintf(tmp, "}\n")
+
+	//fmt.Fprintf(tmp, "	YAdvance:%#v,\n", ufont.YAdvance)
+	//fmt.Fprintf(tmp, "}\n")
 
 	if opts.verbose {
 		fmt.Printf("Approx. %d bytes\n", calcSize(ufont))
