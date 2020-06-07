@@ -101,9 +101,20 @@ func WriteLineColors(display drivers.Displayer, font Fonter, x int16, y int16, s
 	WriteLineColorsRotated(display, font, x, y, str, colors, 0)
 }
 
+var Wrap bool = false
+var NumLines int = 0
+var Cx int16 = 0
+var Cy int16 = 0
+
 // WriteLineColorsRotated writes a string in the selected font in the buffer. Each char is in a different color
 // if not enough colors are defined, colors are cycled.
 func WriteLineColorsRotated(display drivers.Displayer, font Fonter, x int16, y int16, str string, colors []color.RGBA, rotation Rotation) {
+	NumLines = 1
+	defer func() {
+		Cx = x
+		Cy = y
+	}()
+
 	text := []rune(str)
 	numColors := uint16(len(colors))
 	if numColors == 0 {
@@ -117,8 +128,27 @@ func WriteLineColorsRotated(display drivers.Displayer, font Fonter, x int16, y i
 	ox := x
 	oy := y
 	for i := 0; i < l; i++ {
-		if text[i] == LineFeed || text[i] == CarriageReturn {
+		if 0xFE00 <= uint32(text[i]) && uint32(text[i]) <= 0xFE0F {
+			// https://en.wikipedia.org/wiki/Variation_Selectors_(Unicode_block)
+			continue
+		} else if 0x20D0 <= uint32(text[i]) && uint32(text[i]) <= 0x20F1 {
+			// https://en.wikipedia.org/wiki/Combining_Diacritical_Marks_for_Symbols
+			continue
+		} else if 0x200C <= uint32(text[i]) && uint32(text[i]) <= 0x200D {
+			// https://en.wikipedia.org/wiki/Zero-width_non-joiner
+			// https://en.wikipedia.org/wiki/Zero-width_joiner
+			continue
+		}
+
+		glyph := font.GetGlyph(text[i])
+		if Wrap && x+int16(glyph.XAdvance) >= w {
+			// TODO: rotation
+			x = ox
+			y += int16(font.GetYAdvance())
+			NumLines++
+		} else if text[i] == LineFeed || text[i] == CarriageReturn {
 			/* CR or LF */
+			NumLines++
 			if rotation == NO_ROTATION {
 				x = ox
 				y += int16(font.GetYAdvance())
@@ -134,7 +164,6 @@ func WriteLineColorsRotated(display drivers.Displayer, font Fonter, x int16, y i
 			}
 			continue
 		}
-		glyph := font.GetGlyph(text[i])
 		drawGlyphRotated(display, x, y, glyph, colors[c], rotation)
 		c++
 		if c >= numColors {
