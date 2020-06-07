@@ -50,7 +50,7 @@ func DrawCharRotated(display drivers.Displayer, font Fonter, x int16, y int16, c
 }
 
 // drawGlyphRotated sets a single glyph in the buffer of the display.
-func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, color color.RGBA, rotation Rotation) {
+func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, c color.RGBA, rotation Rotation) {
 	bitmapOffset := 0
 	bitmap := byte(0)
 	if len(glyph.Bitmaps) > 0 {
@@ -62,13 +62,13 @@ func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, 
 
 			if (bitmap & 0x80) != 0x00 {
 				if rotation == NO_ROTATION {
-					display.SetPixel(x+int16(glyph.XOffset)+i, y+int16(glyph.YOffset)+j, color)
+					display.SetPixel(x+int16(glyph.XOffset)+i, y+int16(glyph.YOffset)+j, c)
 				} else if rotation == ROTATION_90 {
-					display.SetPixel(x-int16(glyph.YOffset)-j, y+int16(glyph.XOffset)+i, color)
+					display.SetPixel(x-int16(glyph.YOffset)-j, y+int16(glyph.XOffset)+i, c)
 				} else if rotation == ROTATION_180 {
-					display.SetPixel(x-int16(glyph.XOffset)-i, y-int16(glyph.YOffset)-j, color)
+					display.SetPixel(x-int16(glyph.XOffset)-i, y-int16(glyph.YOffset)-j, c)
 				} else {
-					display.SetPixel(x+int16(glyph.YOffset)+j, y-int16(glyph.XOffset)-i, color)
+					display.SetPixel(x+int16(glyph.YOffset)+j, y-int16(glyph.XOffset)-i, c)
 				}
 			}
 			bitmap <<= 1
