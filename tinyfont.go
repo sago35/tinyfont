@@ -18,6 +18,15 @@ const (
 
 type Rotation uint8
 
+type mode int
+
+const (
+	Bitmap mode = iota
+	Rgb55a5
+	Rgb565
+	Grayscale16
+)
+
 type Glyph struct {
 	Rune     rune
 	Width    uint8
@@ -27,6 +36,7 @@ type Glyph struct {
 	YOffset  int8
 	Bitmaps  []byte
 	Emoji    bool
+	Mode     mode
 }
 
 type Font struct {
@@ -54,24 +64,11 @@ func DrawCharRotated(display drivers.Displayer, font Fonter, x int16, y int16, c
 func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, c color.RGBA, rotation Rotation) {
 	bitmapOffset := 0
 
-	if glyph.Emoji {
-		const sz = 12
-
-		pp3 := []uint16{}
-		for i := 0; i < 144*2; i += 2 {
-			pp3 = append(pp3, (uint16(glyph.Bitmaps[i])<<8)+uint16(glyph.Bitmaps[i+1]))
-		}
-
-		for ey := 0; ey < sz; ey++ {
-			for ex := 0; ex < sz; ex++ {
-				p := pp3[ex+ey*sz]
-				if (p & 0x0020) != 0 {
-					// RGB 55a5
-					display.SetPixel(int16(ex)+x, int16(ey)+y+int16(glyph.YOffset), color.RGBA{R: uint8((p & 0xF800) >> 8), G: uint8(((p << 5) & 0xF800) >> 8), B: uint8(((p << 11) & 0xF800) >> 8), A: 0})
-				}
-			}
-		}
-	} else {
+	// org Glyph
+	// RGB55a5 for emoji
+	// grayscale 16 for others
+	switch glyph.Mode {
+	case Bitmap:
 		bitmap := byte(0)
 		if len(glyph.Bitmaps) > 0 {
 			bitmap = glyph.Bitmaps[bitmapOffset]
@@ -103,6 +100,24 @@ func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, 
 				}
 			}
 		}
+	case Rgb55a5:
+		//sz := int(glyph.Width) * int(glyph.Height)
+		sz := int(12 * 12)
+		pp3 := make([]uint16, sz)
+		for i := 0; i < sz; i += 2 {
+			pp3 = append(pp3, (uint16(glyph.Bitmaps[i])<<8)+uint16(glyph.Bitmaps[i+1]))
+		}
+
+		for ey := 0; ey < sz; ey++ {
+			for ex := 0; ex < sz; ex++ {
+				p := pp3[ex+ey*sz]
+				if (p & 0x0020) != 0 {
+					// RGB 55a5
+					display.SetPixel(int16(ex)+x, int16(ey)+y+int16(glyph.YOffset), color.RGBA{R: uint8((p & 0xF800) >> 8), G: uint8(((p << 5) & 0xF800) >> 8), B: uint8(((p << 11) & 0xF800) >> 8), A: 0})
+				}
+			}
+		}
+	default:
 	}
 }
 
