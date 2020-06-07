@@ -27,17 +27,19 @@ type fontgen struct {
 type option func(*options)
 
 type options struct {
-	ascii    bool
-	all      bool
-	verbose  bool
-	yadvance int
+	ascii     bool
+	all       bool
+	verbose   bool
+	yadvance  int
+	withEmoji bool
 }
 
 var defaultOption = options{
-	ascii:    true,
-	all:      false,
-	verbose:  false,
-	yadvance: 0,
+	ascii:     true,
+	all:       false,
+	verbose:   false,
+	yadvance:  0,
+	withEmoji: true,
 }
 
 func withAscii(b bool) option {
@@ -61,6 +63,12 @@ func withVerbose(b bool) option {
 func withYAdvance(a int) option {
 	return func(o *options) {
 		o.yadvance = a
+	}
+}
+
+func withEmoji(b bool) option {
+	return func(o *options) {
+		o.withEmoji = b
 	}
 }
 
@@ -140,6 +148,15 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 			}
 		}
 	}
+
+	if opts.withEmoji {
+		g, err := makeEmoji(`.\cmd\emoji\png`, exists)
+		if err != nil {
+			return err
+		}
+		ufont.Glyphs = append(ufont.Glyphs, g...)
+	}
+
 	ufont.Glyphs = sortGlyphs(ufont.Glyphs)
 
 	tmp, err := ioutil.TempFile(``, `tinyfontgen`)
@@ -177,13 +194,14 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 		if ufont.Glyphs[i].Rune == 0 {
 			c = ""
 		}
-		length := 4 + 1 + 1 + 1 + 1 + 1 + len(g.Bitmaps)
+		length := 4 + 1 + 1 + 1 + 1 + 1 + 1 + len(g.Bitmaps)
 		fmt.Fprintf(tmp, `	/* %s */ `, c)
 		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, (uint16(length) >> 8), uint8(length))
 		fmt.Fprintf(tmp, `"\x%02X\x%02X\x%02X\x%02X" +`, ((uint32(g.Rune) & 0xFF000000) >> 24), ((uint32(g.Rune) & 0x00FF0000) >> 16), ((uint32(g.Rune) & 0x0000FF00) >> 8), (uint32(g.Rune) & 0x000000FF))
 		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, uint8(g.Width), uint8(g.Height))
 		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, uint8(g.XAdvance), uint8(g.XOffset))
 		fmt.Fprintf(tmp, `"\x%02X" +`, uint8(g.YOffset))
+		fmt.Fprintf(tmp, `"\x%02X" +`, uint8(g.Mode))
 		fmt.Fprintf(tmp, `"`)
 		for _, b := range g.Bitmaps {
 			fmt.Fprintf(tmp, `\x%02X`, uint8(b))
@@ -230,13 +248,14 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 	fmt.Fprintf(tmp, "	length := int((uint16(c%s[idx+0]) << 8) + uint16(c%s[idx+1]))\n", fontname, fontname)
 	fmt.Fprintf(tmp, "	idx += 2\n")
 	fmt.Fprintf(tmp, "	ret := tinyfont.Glyph{\n")
-	fmt.Fprintf(tmp, "		Rune:     rune((uint16(c%s[idx+0]) << 8) + uint16(c%s[idx+1])),\n", fontname, fontname)
-	fmt.Fprintf(tmp, "		Width:    uint8(c%s[idx+2]),\n", fontname)
-	fmt.Fprintf(tmp, "		Height:   uint8(c%s[idx+3]),\n", fontname)
-	fmt.Fprintf(tmp, "		XAdvance: uint8(c%s[idx+4]),\n", fontname)
-	fmt.Fprintf(tmp, "		XOffset:  int8(c%s[idx+5]),\n", fontname)
-	fmt.Fprintf(tmp, "		YOffset:  int8(c%s[idx+6]),\n", fontname)
-	fmt.Fprintf(tmp, "		Bitmaps:  []uint8(c%s[idx+7 : idx+length]),\n", fontname)
+	fmt.Fprintf(tmp, "		Rune:     rune((uint32(c%s[idx+0]) << 24) + (uint32(c%s[idx+1]) << 16) + (uint32(c%s[idx+2]) << 8) + uint32(c%s[idx+3])),\n", fontname, fontname, fontname, fontname)
+	fmt.Fprintf(tmp, "		Width:    uint8(c%s[idx+4]),\n", fontname)
+	fmt.Fprintf(tmp, "		Height:   uint8(c%s[idx+5]),\n", fontname)
+	fmt.Fprintf(tmp, "		XAdvance: uint8(c%s[idx+6]),\n", fontname)
+	fmt.Fprintf(tmp, "		XOffset:  int8(c%s[idx+7]),\n", fontname)
+	fmt.Fprintf(tmp, "		YOffset:  int8(c%s[idx+8]),\n", fontname)
+	fmt.Fprintf(tmp, "		Mode   :  tinyfont.Mode(c%s[idx+9]),\n", fontname)
+	fmt.Fprintf(tmp, "		Bitmaps:  []uint8(c%s[idx+10 : idx+length]),\n", fontname)
 	fmt.Fprintf(tmp, "	}\n")
 	fmt.Fprintf(tmp, "\n")
 	fmt.Fprintf(tmp, "	return ret\n")

@@ -18,10 +18,10 @@ const (
 
 type Rotation uint8
 
-type mode int
+type Mode int
 
 const (
-	Bitmap mode = iota
+	Bitmap Mode = iota
 	Rgb55a5
 	Rgb565
 	Grayscale16
@@ -36,7 +36,7 @@ type Glyph struct {
 	YOffset  int8
 	Bitmaps  []byte
 	Emoji    bool
-	Mode     mode
+	Mode     Mode
 }
 
 type Font struct {
@@ -101,16 +101,14 @@ func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, 
 			}
 		}
 	case Rgb55a5:
-		//sz := int(glyph.Width) * int(glyph.Height)
-		sz := int(12 * 12)
-		pp3 := make([]uint16, sz)
-		for i := 0; i < sz; i += 2 {
-			pp3 = append(pp3, (uint16(glyph.Bitmaps[i])<<8)+uint16(glyph.Bitmaps[i+1]))
+		pp3 := make([]uint16, len(glyph.Bitmaps))
+		for i := 0; i < len(glyph.Bitmaps); i += 2 {
+			pp3[i/2] = (uint16(glyph.Bitmaps[i]) << 8) + uint16(glyph.Bitmaps[i+1])
 		}
 
-		for ey := 0; ey < sz; ey++ {
-			for ex := 0; ex < sz; ex++ {
-				p := pp3[ex+ey*sz]
+		for ey := 0; ey < int(glyph.Height); ey++ {
+			for ex := 0; ex < int(glyph.Width); ex++ {
+				p := pp3[ex+ey*int(glyph.Height)]
 				if (p & 0x0020) != 0 {
 					// RGB 55a5
 					display.SetPixel(int16(ex)+x, int16(ey)+y+int16(glyph.YOffset), color.RGBA{R: uint8((p & 0xF800) >> 8), G: uint8(((p << 5) & 0xF800) >> 8), B: uint8(((p << 11) & 0xF800) >> 8), A: 0})

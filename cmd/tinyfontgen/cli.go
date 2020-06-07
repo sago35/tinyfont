@@ -28,6 +28,7 @@ var (
 	all      = fs.Bool("all", false, "include all ascii glyphs (codepoint <= 255) in the font")
 	verbose  = fs.Bool("verbose", false, "run verbosely")
 	yadvance = fs.Int("yadvance", 0, "new line distance")
+	emoji    = fs.Bool("emoji", false, "with emoji")
 )
 
 type strslice struct {
@@ -85,6 +86,7 @@ func (c *cli) Run(args []string) error {
 		withAll(*all),
 		withVerbose(*verbose),
 		withYAdvance(*yadvance),
+		withEmoji(*emoji),
 	}
 
 	runes := []rune(*str)
