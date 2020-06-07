@@ -26,6 +26,7 @@ type Glyph struct {
 	XOffset  int8
 	YOffset  int8
 	Bitmaps  []byte
+	Emoji    bool
 }
 
 type Font struct {
@@ -52,34 +53,54 @@ func DrawCharRotated(display drivers.Displayer, font Fonter, x int16, y int16, c
 // drawGlyphRotated sets a single glyph in the buffer of the display.
 func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, c color.RGBA, rotation Rotation) {
 	bitmapOffset := 0
-	bitmap := byte(0)
-	if len(glyph.Bitmaps) > 0 {
-		bitmap = glyph.Bitmaps[bitmapOffset]
-	}
-	bit := uint8(0)
-	for j := int16(0); j < int16(glyph.Height); j++ {
-		for i := int16(0); i < int16(glyph.Width); i++ {
 
-			if (bitmap & 0x80) != 0x00 {
-				if rotation == NO_ROTATION {
-					display.SetPixel(x+int16(glyph.XOffset)+i, y+int16(glyph.YOffset)+j, c)
-				} else if rotation == ROTATION_90 {
-					display.SetPixel(x-int16(glyph.YOffset)-j, y+int16(glyph.XOffset)+i, c)
-				} else if rotation == ROTATION_180 {
-					display.SetPixel(x-int16(glyph.XOffset)-i, y-int16(glyph.YOffset)-j, c)
-				} else {
-					display.SetPixel(x+int16(glyph.YOffset)+j, y-int16(glyph.XOffset)-i, c)
+	if glyph.Emoji {
+		const sz = 12
+
+		pp3 := []uint16{}
+		for i := 0; i < 144*2; i += 2 {
+			pp3 = append(pp3, (uint16(glyph.Bitmaps[i])<<8)+uint16(glyph.Bitmaps[i+1]))
+		}
+
+		for ey := 0; ey < sz; ey++ {
+			for ex := 0; ex < sz; ex++ {
+				p := pp3[ex+ey*sz]
+				if (p & 0x0020) != 0 {
+					// RGB 55a5
+					display.SetPixel(int16(ex)+x, int16(ey)+y+int16(glyph.YOffset), color.RGBA{R: uint8((p & 0xF800) >> 8), G: uint8(((p << 5) & 0xF800) >> 8), B: uint8(((p << 11) & 0xF800) >> 8), A: 0})
 				}
 			}
-			bitmap <<= 1
+		}
+	} else {
+		bitmap := byte(0)
+		if len(glyph.Bitmaps) > 0 {
+			bitmap = glyph.Bitmaps[bitmapOffset]
+		}
+		bit := uint8(0)
+		for j := int16(0); j < int16(glyph.Height); j++ {
+			for i := int16(0); i < int16(glyph.Width); i++ {
 
-			bit++
-			if bit > 7 {
-				bitmapOffset++
-				if bitmapOffset < len(glyph.Bitmaps) {
-					bitmap = glyph.Bitmaps[bitmapOffset]
+				if (bitmap & 0x80) != 0x00 {
+					if rotation == NO_ROTATION {
+						display.SetPixel(x+int16(glyph.XOffset)+i, y+int16(glyph.YOffset)+j, c)
+					} else if rotation == ROTATION_90 {
+						display.SetPixel(x-int16(glyph.YOffset)-j, y+int16(glyph.XOffset)+i, c)
+					} else if rotation == ROTATION_180 {
+						display.SetPixel(x-int16(glyph.XOffset)-i, y-int16(glyph.YOffset)-j, c)
+					} else {
+						display.SetPixel(x+int16(glyph.YOffset)+j, y-int16(glyph.XOffset)-i, c)
+					}
 				}
-				bit = 0
+				bitmap <<= 1
+
+				bit++
+				if bit > 7 {
+					bitmapOffset++
+					if bitmapOffset < len(glyph.Bitmaps) {
+						bitmap = glyph.Bitmaps[bitmapOffset]
+					}
+					bit = 0
+				}
 			}
 		}
 	}
