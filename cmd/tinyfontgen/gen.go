@@ -159,6 +159,13 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 
 	fontname := strings.ToUpper(f.fontname[0:1]) + f.fontname[1:]
 
+	fmt.Fprintf(tmp, "\n")
+	fmt.Fprintf(tmp, "var %s = s%s{}\n", fontname, fontname)
+	fmt.Fprintf(tmp, "\n")
+	fmt.Fprintf(tmp, "type s%s struct {\n", fontname)
+	fmt.Fprintf(tmp, "}\n")
+	fmt.Fprintf(tmp, "\n")
+
 	fmt.Fprintf(tmp, `const c%s = "" +`, fontname)
 	fmt.Fprintln(tmp)
 
@@ -170,10 +177,10 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 		if ufont.Glyphs[i].Rune == 0 {
 			c = ""
 		}
-		length := 2 + 1 + 1 + 1 + 1 + 1 + len(g.Bitmaps)
+		length := 4 + 1 + 1 + 1 + 1 + 1 + len(g.Bitmaps)
 		fmt.Fprintf(tmp, `	/* %s */ `, c)
 		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, (uint16(length) >> 8), uint8(length))
-		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, (uint16(g.Rune) >> 8), uint8(g.Rune))
+		fmt.Fprintf(tmp, `"\x%02X\x%02X\x%02X\x%02X" +`, ((uint32(g.Rune) & 0xFF000000) >> 24), ((uint32(g.Rune) & 0x00FF0000) >> 16), ((uint32(g.Rune) & 0x0000FF00) >> 8), (uint32(g.Rune) & 0x000000FF))
 		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, uint8(g.Width), uint8(g.Height))
 		fmt.Fprintf(tmp, `"\x%02X\x%02X" +`, uint8(g.XAdvance), uint8(g.XOffset))
 		fmt.Fprintf(tmp, `"\x%02X" +`, uint8(g.YOffset))
@@ -188,13 +195,8 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 	fmt.Fprintln(tmp, `""`)
 	fmt.Fprintln(tmp)
 
-	fmt.Fprintf(tmp, "type s%s struct {\n", fontname)
-	fmt.Fprintf(tmp, "}\n")
-	fmt.Fprintf(tmp, "\n")
-	fmt.Fprintf(tmp, "var %s = s%s{}\n", fontname, fontname)
-	fmt.Fprintf(tmp, "\n")
 	fmt.Fprintf(tmp, "func (f *s%s) GetGlyph(r rune) tinyfont.Glyph {\n", fontname)
-	fmt.Fprintf(tmp, "	idx := 0\n")
+	fmt.Fprintf(tmp, "	idx := -1\n")
 	fmt.Fprintf(tmp, "\n")
 
 	// switch
@@ -209,6 +211,19 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 		v := idxMap[rune(k)]
 		fmt.Fprintf(tmp, "case 0x%04X: idx = %d\n", k, v)
 	}
+	fmt.Fprintf(tmp, "}\n")
+	fmt.Fprintf(tmp, "\n")
+
+	fmt.Fprintf(tmp, "if idx == -1 {\n")
+	fmt.Fprintf(tmp, "	return tinyfont.Glyph{\n")
+	fmt.Fprintf(tmp, "		Rune:     r,\n")
+	fmt.Fprintf(tmp, "		Width:    0,\n")
+	fmt.Fprintf(tmp, "		Height:   0,\n")
+	fmt.Fprintf(tmp, "		XAdvance: uint8(c%s[6]),\n", fontname)
+	fmt.Fprintf(tmp, "		XOffset:  int8(c%s[7]),\n", fontname)
+	fmt.Fprintf(tmp, "		YOffset:  int8(c%s[8]),\n", fontname)
+	fmt.Fprintf(tmp, "		Bitmaps:  []uint8{},\n")
+	fmt.Fprintf(tmp, "	}\n")
 	fmt.Fprintf(tmp, "}\n")
 	fmt.Fprintf(tmp, "\n")
 
