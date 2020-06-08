@@ -60,6 +60,44 @@ func DrawCharRotated(display drivers.Displayer, font Fonter, x int16, y int16, c
 	drawGlyphRotated(display, x, y, glyph, color, rotation)
 }
 
+func gsMap(b uint8) uint8 {
+	switch b {
+	case 0x00:
+		return 0xFF
+	case 0x01:
+		return 0xF0
+	case 0x02:
+		return 0xE0
+	case 0x03:
+		return 0xD0
+	case 0x04:
+		return 0xC0
+	case 0x05:
+		return 0xB0
+	case 0x06:
+		return 0xA0
+	case 0x07:
+		return 0x90
+	case 0x08:
+		return 0x80
+	case 0x09:
+		return 0x70
+	case 0x0A:
+		return 0x60
+	case 0x0B:
+		return 0x50
+	case 0x0C:
+		return 0x40
+	case 0x0D:
+		return 0x30
+	case 0x0E:
+		return 0x20
+	case 0x0F:
+		return 0x10
+	}
+	return 0
+}
+
 // drawGlyphRotated sets a single glyph in the buffer of the display.
 func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, c color.RGBA, rotation Rotation) {
 	bitmapOffset := 0
@@ -100,7 +138,7 @@ func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, 
 				}
 			}
 		}
-	case Rgb55a5:
+	case Rgb55a5, Rgb565:
 		pp3 := make([]uint16, len(glyph.Bitmaps))
 		for i := 0; i < len(glyph.Bitmaps); i += 2 {
 			pp3[i/2] = (uint16(glyph.Bitmaps[i]) << 8) + uint16(glyph.Bitmaps[i+1])
@@ -108,13 +146,36 @@ func drawGlyphRotated(display drivers.Displayer, x int16, y int16, glyph Glyph, 
 
 		for ey := 0; ey < int(glyph.Height); ey++ {
 			for ex := 0; ex < int(glyph.Width); ex++ {
-				p := pp3[ex+ey*int(glyph.Height)]
-				if (p & 0x0020) != 0 {
+				p := pp3[ex+ey*int(glyph.Height)] // TODO: width?
+				if (p&0x0020) != 0 || glyph.Mode == Rgb565 {
 					// RGB 55a5
 					display.SetPixel(int16(ex)+x, int16(ey)+y+int16(glyph.YOffset), color.RGBA{R: uint8((p & 0xF800) >> 8), G: uint8(((p << 5) & 0xF800) >> 8), B: uint8(((p << 11) & 0xF800) >> 8), A: 0})
 				}
 			}
 		}
+	case Grayscale16:
+		// 4 bit per pixcel grayscale
+		for ey := 0; ey < int(glyph.Height); ey++ {
+			for ex := 0; ex < int(glyph.Width); ex += 2 {
+				p1 := gsMap(((glyph.Bitmaps[ex/2+ey*int(glyph.Width/2)] & 0xF0) >> 4))
+				p2 := gsMap((glyph.Bitmaps[ex/2+ey*int(glyph.Width/2)] & 0x0F))
+				////p1 := (0x0F - (uint8(glyph.Bitmaps[ex/2+ey*int(glyph.Width/2)]&0xF0) >> 4)) << 4
+				////p2 := (0x0F - (uint8(glyph.Bitmaps[ex/2+ey*int(glyph.Width/2)] & 0x0F))) << 4
+				////if 0xF0 == p1 {
+				////	p1 = 0xFF
+				////}
+				////if 0xF0 == p2 {
+				////	p2 = 0xFF
+				////}
+				//p1 /= 2 // debug
+				//p2 /= 2 // debug
+				//display.SetPixel(int16(ex)+x, int16(ey)+y+int16(glyph.YOffset), color.RGBA{R: uint8(p1 << 4), G: uint8(p1 << 4), B: uint8(p1 << 4), A: 0})
+				//display.SetPixel(int16(ex)+x+1, int16(ey)+y+int16(glyph.YOffset), color.RGBA{R: uint8(p2 << 4), G: uint8(p2 << 4), B: uint8(p2 << 4), A: 0})
+				display.SetPixel(int16(ex)+x, int16(ey)+y+int16(glyph.YOffset), color.RGBA{R: p1, G: p1, B: p1, A: 0})
+				display.SetPixel(int16(ex)+x+1, int16(ey)+y+int16(glyph.YOffset), color.RGBA{R: p2, G: p2, B: p2, A: 0})
+			}
+		}
+
 	default:
 	}
 }

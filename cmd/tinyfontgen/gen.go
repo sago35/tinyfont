@@ -27,19 +27,21 @@ type fontgen struct {
 type option func(*options)
 
 type options struct {
-	ascii     bool
-	all       bool
-	verbose   bool
-	yadvance  int
-	withEmoji bool
+	ascii        bool
+	all          bool
+	verbose      bool
+	yadvance     int
+	withEmoji    bool
+	oversampling bool
 }
 
 var defaultOption = options{
-	ascii:     true,
-	all:       false,
-	verbose:   false,
-	yadvance:  0,
-	withEmoji: true,
+	ascii:        true,
+	all:          false,
+	verbose:      false,
+	yadvance:     0,
+	withEmoji:    true,
+	oversampling: true,
 }
 
 func withAscii(b bool) option {
@@ -69,6 +71,12 @@ func withYAdvance(a int) option {
 func withEmoji(b bool) option {
 	return func(o *options) {
 		o.withEmoji = b
+	}
+}
+
+func withOversampling(b bool) option {
+	return func(o *options) {
+		o.oversampling = b
 	}
 }
 
@@ -110,6 +118,7 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 			code2rune = jisx0208.Rune
 		}
 
+		var g tinyfont.Glyph
 		for _, f := range font.Characters {
 			fr, err := code2rune(int(f.Encoding))
 			if err != nil {
@@ -125,9 +134,16 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 				}
 				exists[fr] = true
 
-				g, err := bdf2glyph(f, fr)
-				if err != nil {
-					continue
+				if opts.oversampling {
+					g, err = bdf2glyphOs(f, fr, font)
+					if err != nil {
+						continue
+					}
+				} else {
+					g, err = bdf2glyph(f, fr)
+					if err != nil {
+						continue
+					}
 				}
 				ufont.Glyphs = append(ufont.Glyphs, g)
 			} else {
@@ -138,9 +154,16 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 						}
 						exists[fr] = true
 
-						g, err := bdf2glyph(f, fr)
-						if err != nil {
-							continue
+						if opts.oversampling {
+							g, err = bdf2glyphOs(f, fr, font)
+							if err != nil {
+								continue
+							}
+						} else {
+							g, err = bdf2glyph(f, fr)
+							if err != nil {
+								continue
+							}
 						}
 						ufont.Glyphs = append(ufont.Glyphs, g)
 					}
@@ -262,7 +285,7 @@ func (f *fontgen) generate(w io.Writer, runes []rune, opt ...option) error {
 	fmt.Fprintf(tmp, "}\n")
 	fmt.Fprintf(tmp, "\n")
 	fmt.Fprintf(tmp, "func (f *s%s) GetYAdvance() uint8 {\n", fontname)
-	fmt.Fprintf(tmp, "	return 0x14\n")
+	fmt.Fprintf(tmp, "	return 0x14\n") // TODO:
 	fmt.Fprintf(tmp, "}\n")
 
 	//fmt.Fprintf(tmp, "	YAdvance:%#v,\n", ufont.YAdvance)

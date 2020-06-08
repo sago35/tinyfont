@@ -19,16 +19,17 @@ type cli struct {
 }
 
 var (
-	fs       = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	pkgname  = fs.String("package", "main", "package name")
-	fontname = fs.String("fontname", "TinyFont", "font name")
-	str      = fs.String("string", "", "strings for font")
-	output   = fs.String("output", "", "output path")
-	ascii    = fs.Bool("ascii", true, "include all glyphs in the font")
-	all      = fs.Bool("all", false, "include all ascii glyphs (codepoint <= 255) in the font")
-	verbose  = fs.Bool("verbose", false, "run verbosely")
-	yadvance = fs.Int("yadvance", 0, "new line distance")
-	emoji    = fs.Bool("emoji", false, "with emoji")
+	fs           = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	pkgname      = fs.String("package", "main", "package name")
+	fontname     = fs.String("fontname", "TinyFont", "font name")
+	str          = fs.String("string", "", "strings for font")
+	output       = fs.String("output", "", "output path")
+	ascii        = fs.Bool("ascii", true, "include all glyphs in the font")
+	all          = fs.Bool("all", false, "include all ascii glyphs (codepoint <= 255) in the font")
+	verbose      = fs.Bool("verbose", false, "run verbosely")
+	yadvance     = fs.Int("yadvance", 0, "new line distance")
+	emoji        = fs.Bool("emoji", false, "with emoji")
+	oversampling = fs.Bool("oversampling", false, "oversampling 4x4")
 )
 
 type strslice struct {
@@ -87,6 +88,7 @@ func (c *cli) Run(args []string) error {
 		withVerbose(*verbose),
 		withYAdvance(*yadvance),
 		withEmoji(*emoji),
+		withOversampling(*oversampling),
 	}
 
 	runes := []rune(*str)
